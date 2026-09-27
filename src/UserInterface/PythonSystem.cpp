@@ -325,6 +325,29 @@ bool CPythonSystem::IsWindowed()
 	return m_Config.bWindowed;
 }
 
+// The display mode is only read at startup: this stores it in config/metin2.cfg for the next launch,
+// using the highest refresh rate available for that resolution.
+bool CPythonSystem::SetDisplayMode(int resolutionIndex, bool isWindowed)
+{
+	if (resolutionIndex < 0 || resolutionIndex >= m_ResolutionCount)
+		return false;
+
+	const TResolution& resolution = m_ResolutionList[resolutionIndex];
+
+	DWORD frequency = 0;
+	for (int i = 0; i < resolution.frequency_count; ++i)
+		if (resolution.frequency[i] > frequency)
+			frequency = resolution.frequency[i];
+
+	m_Config.width		= resolution.width;
+	m_Config.height		= resolution.height;
+	m_Config.bpp		= resolution.bpp;
+	m_Config.frequency	= frequency;
+	m_Config.bWindowed	= isWindowed;
+
+	return SaveConfig();
+}
+
 bool CPythonSystem::IsViewChat()
 {
 	return m_Config.bViewChat;

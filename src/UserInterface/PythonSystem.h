@@ -109,6 +109,7 @@ class CPythonSystem : public CSingleton<CPythonSystem>
 		DWORD							GetFrequency();
 		bool							IsSoftwareCursor();
 		bool							IsWindowed();
+		bool							SetDisplayMode(int resolutionIndex, bool isWindowed);
 		bool							IsViewChat();
 		bool							IsAlwaysShowName();
 		bool							IsShowDamage();

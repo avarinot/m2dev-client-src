@@ -339,6 +339,26 @@ PyObject * systemGetCurrentResolution(PyObject * poSelf, PyObject *poArgs)
 	return Py_BuildValue("iii", tmp->width, tmp->height, tmp->bpp);
 }
 
+PyObject * systemIsWindowed(PyObject * poSelf, PyObject * poArgs)
+{
+	return Py_BuildValue("i", CPythonSystem::Instance().IsWindowed());
+}
+
+// Saves the display mode for the next launch; returns whether config/metin2.cfg was written.
+PyObject * systemSetDisplayMode(PyObject * poSelf, PyObject * poArgs)
+{
+	int resolutionIndex;
+	int isWindowed;
+
+	if (!PyTuple_GetInteger(poArgs, 0, &resolutionIndex))
+		return Py_BuildException();
+
+	if (!PyTuple_GetInteger(poArgs, 1, &isWindowed))
+		return Py_BuildException();
+
+	return Py_BuildValue("i", CPythonSystem::Instance().SetDisplayMode(resolutionIndex, isWindowed != 0));
+}
+
 PyObject * systemGetFrequency(PyObject * poSelf, PyObject * poArgs)
 {
 	int	index, frequency_index;
@@ -413,6 +433,8 @@ void initsystem()
 		{ "GetFrequencyCount",			systemGetFrequencyCount,		METH_VARARGS },
 
 		{ "GetCurrentResolution",		systemGetCurrentResolution,		METH_VARARGS },
+		{ "IsWindowed",					systemIsWindowed,				METH_VARARGS },
+		{ "SetDisplayMode",				systemSetDisplayMode,			METH_VARARGS },
 
 		{ "GetResolution",				systemGetResolution,			METH_VARARGS },
 		{ "GetFrequency",				systemGetFrequency,				METH_VARARGS },
