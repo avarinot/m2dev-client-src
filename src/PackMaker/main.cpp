@@ -14,6 +14,14 @@ static void EncryptData(uint8_t* data, size_t len, const uint8_t* nonce)
 	crypto_stream_xchacha20_xor(data, data, len, nonce, PACK_KEY.data());
 }
 
+// Synthetic nonce: a keyed hash of the plaintext instead of random bytes, so that the same input always produces
+// a byte-identical pack (the patcher then only ships packs whose content changed). A nonce is reused only for an
+// identical plaintext, which reveals nothing but that equality.
+static void DeriveNonce(const uint8_t* data, size_t len, uint8_t* nonce)
+{
+	crypto_generichash(nonce, PACK_NONCE_SIZE, data, len, PACK_KEY.data(), PACK_KEY.size());
+}
+
 int main(int argc, char* argv[])
 {
 	std::setlocale(LC_ALL, "en_US.UTF-8");
@@ -88,9 +96,7 @@ int main(int argc, char* argv[])
 	header.entry_num = entries.size();
 	header.data_begin = sizeof(TPackFileHeader) + sizeof(TPackFileEntry) * entries.size();
 
-	randombytes_buf(header.nonce, sizeof(header.nonce));
-
-	ofs.write((const char*) &header, sizeof(header));
+	// The header (and its nonce, derived from the entry table) is written once the table is complete.
 	ofs.seekp(header.data_begin, std::ios::beg);
 
 	uint64_t offset = 0;
@@ -125,7 +131,7 @@ int main(int argc, char* argv[])
 		if (path.has_extension() && path.extension() == ".py") {
 			entry.encryption = 1;
 
-			randombytes_buf(entry.nonce, sizeof(entry.nonce));
+			DeriveNonce((const uint8_t*)compressed_buffer.data(), entry.compressed_size, entry.nonce);
 			EncryptData((uint8_t*)compressed_buffer.data(), entry.compressed_size, entry.nonce);
 		}
 
@@ -133,7 +139,16 @@ int main(int argc, char* argv[])
 		offset += entry.compressed_size;
 	}
 
-	ofs.seekp(sizeof(TPackFileHeader), std::ios::beg);
+	std::vector<uint8_t> entry_table;
+	entry_table.reserve(sizeof(TPackFileEntry) * entries.size());
+	for (auto& [path, entry] : entries) {
+		const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&entry);
+		entry_table.insert(entry_table.end(), bytes, bytes + sizeof(TPackFileEntry));
+	}
+	DeriveNonce(entry_table.data(), entry_table.size(), header.nonce);
+
+	ofs.seekp(0, std::ios::beg);
+	ofs.write((const char*) &header, sizeof(header));
 
 	for (auto& [path, entry] : entries) {
 		TPackFileEntry tmp = entry;
